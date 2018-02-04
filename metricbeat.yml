@@ -1,0 +1,37 @@
+metricbeat.config.modules:
+  path: ${path.config}/modules.d/*.yml
+  reload.enabled: false
+
+processors:
+- add_cloud_metadata:
+
+output.elasticsearch:
+  hosts: ['elasticsearch:9200']
+  username: elastic
+  password: changeme
+
+setup.kibana.host: "kibana:5601"
+
+metricbeat.modules:
+  - module: system
+    metricsets:
+      - cpu             # CPU usage
+      - filesystem      # File system usage for each mountpoint
+      - fsstat          # File system summary metrics
+      - load            # CPU load averages
+      - memory          # Memory usage
+      - network         # Network IO
+      - process         # Per process metrics
+      - process_summary # Process summary
+      - uptime          # System Uptime
+      #- core           # Per CPU core usage
+      #- diskio         # Disk IO
+      #- socket         # Sockets and connection info (linux only)
+    enabled: true
+    period: 10s
+    processes: ['.*']
+
+  - module: docker
+    metricsets: ["container", "cpu", "diskio", "healthcheck", "info", "memory", "network"]
+    hosts: ["unix:///var/run/docker.sock"]
+    period: 10s

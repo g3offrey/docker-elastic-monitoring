@@ -1,0 +1,57 @@
+version: '3'
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:6.1.3
+    container_name: elasticsearch
+    environment:
+      - "http.host=0.0.0.0"
+      - "transport.host=127.0.0.1"
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+    networks:
+      - elk
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:6.1.3
+    container_name: kibana
+    ports:
+      - 5601:5601
+    networks:
+      - elk
+    depends_on:
+      - elasticsearch
+
+  apm-server:
+    image: docker.elastic.co/apm/apm-server:6.1.3
+    container_name: apm-server
+    ports:
+      - 8200:8200
+    volumes:
+      - ./apm-server.yml:/usr/share/apm-server/apm-server.yml
+    networks:
+      - elk
+    depends_on:
+      - elasticsearch
+
+  beats:
+    image: docker.elastic.co/beats/metricbeat:6.1.3
+    command:
+      - "-system.hostfs=/hostfs"
+    container_name: beats
+    user: root
+    volumes:
+      - ./metricbeat.yml:/usr/share/metricbeat/metricbeat.yml
+      - /proc:/hostfs/proc:ro
+      - /sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro
+      - /:/hostfs:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - elk
+    depends_on:
+      - elasticsearch
+
+volumes:
+  esdata:
+
+networks:
+  elk:
