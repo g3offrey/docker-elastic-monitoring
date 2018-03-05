@@ -1,7 +1,25 @@
 version: '3'
 services:
+  traefik:
+    image: traefik:latest
+    restart: always
+    container_name: traefik
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./traefik/traefik.toml:/traefik.toml
+      - ./traefik/acme.json:/acme.json
+    networks:
+      - web
+    depends_on:
+      - kibana
+      - apm-server
+
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:6.2.1
+    image: docker.elastic.co/elasticsearch/elasticsearch:6.2.2
+    restart: always
     container_name: elasticsearch
     environment:
       - "http.host=0.0.0.0"
@@ -9,32 +27,51 @@ services:
     volumes:
       - esdata:/usr/share/elasticsearch/data
     networks:
-      - elk
+      - eak
 
   kibana:
-    image: docker.elastic.co/kibana/kibana:6.2.1
+    image: docker.elastic.co/kibana/kibana:6.2.2
+    restart: always
     container_name: kibana
-    ports:
-      - 5601:5601
     networks:
-      - elk
+      - eak
     depends_on:
       - elasticsearch
+    labels:
+      - "traefik.backend=kibana"
+      - "traefik.docker.network=web"
+      - "traefik.frontend.rule=Host:kibana.eak.org"
+      - "traefik.enable=true"
+      - "traefik.port=5601"
+      - "traefik.default.protocol=https"
+      - "traefik.admin.frontend.rule=Host:admin.eak.org"
+      - "traefik.admin.protocol=https"
+      - "traefik.admin.port=9443"
 
   apm-server:
-    image: docker.elastic.co/apm/apm-server:6.2.1
+    image: docker.elastic.co/apm/apm-server:6.2.2
+    restart: always
     container_name: apm-server
-    ports:
-      - 8200:8200
     volumes:
       - ./apm-server.yml:/usr/share/apm-server/apm-server.yml
     networks:
-      - elk
+      - eak
+      - web
     depends_on:
       - elasticsearch
+    labels:
+      - "traefik.backend=apm"
+      - "traefik.docker.network=web"
+      - "traefik.frontend.rule=Host:apm.eak.org"
+      - "traefik.enable=true"
+      - "traefik.port=8200"
+      - "traefik.default.protocol=https"
+      - "traefik.admin.frontend.rule=Host:admin.eak.org"
+      - "traefik.admin.protocol=https"
+      - "traefik.admin.port=9443"
 
   beats:
-    image: docker.elastic.co/beats/metricbeat:6.2.1
+    image: docker.elastic.co/beats/metricbeat:6.2.2
     command:
       - "-system.hostfs=/hostfs"
     container_name: beats
@@ -46,7 +83,7 @@ services:
       - /:/hostfs:ro
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
-      - elk
+      - eak
     depends_on:
       - elasticsearch
 
@@ -54,4 +91,5 @@ volumes:
   esdata:
 
 networks:
-  elk:
+  eak:
+  web:
